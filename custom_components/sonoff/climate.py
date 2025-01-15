@@ -317,3 +317,114 @@ class XThermostat(XEntity, ClimateEntity):
             params["targetTemp"] = temperature
 
         await self.ewelink.send(self.device, params)
+
+#moje poprawki
+class XClimateTRVZB(XEntity, ClimateEntity):
+    params = {
+        "occupied_heating_setpoint",
+        "local_temperature",
+        "local_temperature_calibration",
+        "system_mode",
+        "running_state",
+        "battery",
+        "child_lock",
+        "open_window",
+        "frost_protection_temperature",
+        "idle_steps",
+        "closing_steps",
+        "valve_opening_limit_voltage",
+        "valve_closing_limit_voltage",
+        "valve_motor_running_voltage",
+        "valve_opening_degree",
+        "valve_closing_degree",
+        "schedule",
+        "linkquality",
+    }
+
+    _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_target_temperature_step = 0.5
+
+    _attr_supported_features = (
+        ClimateEntityFeature.TARGET_TEMPERATURE |
+        ClimateEntityFeature.TURN_ON |
+        ClimateEntityFeature.TURN_OFF
+    )
+
+    def __init__(self, device):
+        self.device = device
+        self._attr_hvac_mode = HVACMode.OFF
+        self._attr_current_temperature = None
+        self._attr_target_temperature = None
+        self._attr_battery_level = None
+        self._attr_child_lock = None
+        self._attr_frost_protection = None
+
+    def set_state(self, params: dict):
+        cache = self.device.get("params", {})
+        cache.update(params)
+
+        self._attr_current_temperature = cache.get("local_temperature")
+        self._attr_target_temperature = cache.get("occupied_heating_setpoint")
+        self._attr_battery_level = cache.get("battery")
+        self._attr_child_lock = cache.get("child_lock")
+        self._attr_frost_protection = cache.get("frost_protection_temperature")
+
+        if cache.get("system_mode") == "heat":
+            self._attr_hvac_mode = HVACMode.HEAT
+        elif cache.get("system_mode") == "auto":
+            self._attr_hvac_mode = HVACMode.AUTO
+        else:
+            self._attr_hvac_mode = HVACMode.OFF
+
+    async def async_set_hvac_mode(self, hvac_mode: str) -> None:
+        params = {}
+        if hvac_mode == HVACMode.HEAT:
+            params["system_mode"] = "heat"
+        elif hvac_mode == HVACMode.AUTO:
+            params["system_mode"] = "auto"
+        else:
+            params["system_mode"] = "off"
+        
+        await self.device.send(params)
+
+    async def async_set_temperature(self, **kwargs):
+        target_temperature = kwargs.get("temperature")
+        if target_temperature is not None:
+            params = {"occupied_heating_setpoint": target_temperature}
+            await self.device.send(params)
+
+    async def async_set_child_lock(self, lock: bool) -> None:
+        params = {"child_lock": "ON" if lock else "OFF"}
+        await self.device.send(params)
+
+    async def async_set_frost_protection(self, enable: bool) -> None:
+        params = {"frost_protection_temperature": enable}
+        await self.device.send(params)
+
+    async def async_set_valve_parameters(self, **kwargs):
+        params = {}
+        for key in [
+            "idle_steps",
+            "closing_steps",
+            "valve_opening_limit_voltage",
+            "valve_closing_limit_voltage",
+            "valve_motor_running_voltage",
+            "valve_opening_degree",
+            "valve_closing_degree",
+        ]:
+            if key in kwargs:
+                params[key] = kwargs[key]
+        
+        if params:
+            await self.device.send(params)
+
+    async def async_set_schedule(self, schedule: dict) -> None:
+        params = {"schedule": schedule}
+        await self.device.send(params)
+
+    async def async_update(self):
+        """Fetch updated state data from the device."""
+        params = await self.device.get_state()
+        if params:
+            self.set_state(params)
