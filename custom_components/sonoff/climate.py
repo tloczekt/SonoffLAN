@@ -427,4 +427,4 @@ class XClimateTRVZB(XEntity, ClimateEntity):
         """Fetch updated state data from the device."""
         params = await self.device.get_state()
         if params:
-            self.set_state(params)
+          await self.set_state(params)
