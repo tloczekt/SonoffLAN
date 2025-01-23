@@ -26,7 +26,7 @@ from ..binary_sensor import (
     XLightSensor,
     XWaterSensor,
 )
-from ..climate import XClimateNS, XClimateTH, XThermostat
+from ..climate import XClimateNS, XClimateTH, XThermostat,XClimateTRVZB
 from ..core.entity import XEntity
 from ..cover import XCover, XCoverDualR3, XZigbeeCover, XCover91
 from ..fan import XDiffuserFan, XFan, XToggleFan, XFanDualR3
